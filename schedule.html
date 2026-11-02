@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расписание: Паша и Андрей</title>
+<style>
+:root{
+  --bg:#e9edf2; --card:#ffffff; --ink:#18212b; --muted:#6b7684; --line:#d5dbe3;
+  --off:#f1f3f6; --off-ink:#8a94a1;
+  --pasha:#0f7b6c; --andrey:#3b4fc4; --today:#e0a100;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#10161d; --card:#19222c; --ink:#e8edf3; --muted:#92a0b0; --line:#2b3745;
+    --off:#212c38; --off-ink:#738193; --pasha:#2fb5a2; --andrey:#7f93ff; --today:#f2c230; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding:24px 16px 40px;}
+header{max-width:1000px;margin:0 auto 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+h1{font-size:1.4rem;margin:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.filebtn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  padding:8px 14px;border-radius:8px;cursor:pointer}
+button:hover,.filebtn:hover{border-color:var(--muted)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+:focus-visible{outline:3px solid var(--today);outline-offset:2px}
+.filebtn input{display:none}
+main{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+.person{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;border-top:6px solid var(--c)}
+.person[data-id="pasha"]{--c:var(--pasha)}
+.person[data-id="andrey"]{--c:var(--andrey)}
+.person h2{margin:0 0 12px;font-size:1.2rem;color:var(--c)}
+.field{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
+.field label{font-size:.92rem;color:var(--muted)}
+input[type=date],input[type=number]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink)}
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px}
+.nav button{padding:6px 10px;min-width:38px}
+.nav .num{width:70px;text-align:center}
+.nav .year{width:84px}
+.mname{flex:1 1 100%;font-size:1.05rem;font-weight:600;margin:4px 0 0;text-transform:capitalize}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{text-align:center;font-size:.8rem;color:var(--muted);padding:4px 0}
+.day{aspect-ratio:1/0.9;display:flex;align-items:center;justify-content:center;border-radius:8px;
+  background:var(--off);color:var(--off-ink);font-weight:500}
+.day.work{background:var(--c);color:#fff;font-weight:700}
+@media (prefers-color-scheme:dark){.day.work{color:#0b1015}}
+.day.today{outline:3px solid var(--today);outline-offset:1px}
+.day.empty{background:none}
+.legend{display:flex;gap:16px;margin-top:12px;font-size:.88rem;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px;background:var(--off);border:1px solid var(--line)}
+.legend i.w{background:var(--c);border-color:var(--c)}
+.pick{box-shadow:inset 0 0 0 3px var(--ink)}
+.finder{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.ftitle{font-size:.92rem;color:var(--muted);margin-bottom:8px}
+.frow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.frow button{padding:6px 10px;min-width:38px}
+.fval{flex:1 1 180px;font-weight:600}
+.overlap{--c:var(--muted);max-width:1000px;margin:20px auto 0}
+.overlap .finder{margin-top:0;padding-top:0;border-top:0}
+input[type=date]{cursor:pointer}
+select{font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.mobile-only{display:none}
+.tabs{display:none;max-width:1000px;margin:0 auto 14px;gap:6px}
+.tabs button{flex:1;padding:10px 6px;font-weight:600}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+@media (max-width:860px){
+  .tabs{display:flex}
+  .mobile-only{display:inline-block}
+  .page:not(.active){display:none}
+  main{display:block}
+  .overlap{margin-top:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Расписание: Паша и Андрей</h1>
+</header>
+<nav class="tabs" id="tabs" role="tablist">
+  <button type="button" role="tab" data-p="pasha">Паша</button>
+  <button type="button" role="tab" data-p="andrey">Андрей</button>
+  <button type="button" role="tab" data-p="both">Общие выходные</button>
+</nav>
+<main id="app"></main>
+<section class="person overlap page" id="page-both">
+  <h2>Общие выходные</h2>
+  <div class="finder">
+    <div class="ftitle">Суббота или воскресенье, когда выходной и у Паши, и у Андрея</div>
+    <div class="frow">
+      <button type="button" data-f="prev" data-k="both" aria-label="Предыдущая дата">‹</button>
+      <span class="fval" id="both-f"></span>
+      <button type="button" data-f="next" data-k="both" aria-label="Следующая дата">›</button>
+      <select id="both-who" class="mobile-only" aria-label="У кого показать">
+        <option value="pasha">У Паши</option>
+        <option value="andrey">У Андрея</option>
+      </select>
+      <button type="button" data-f="show" data-k="both">Показать</button>
+    </div>
+  </div>
+</section>
+
+<script>
+const PEOPLE = [
+  {id:'pasha',  name:'Паша',   def:'2026-11-02'},
+  {id:'andrey', name:'Андрей', def:'2026-11-03'}
+];
+const MONTHS = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const DOW = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+const now = new Date();
+const state = {};
+PEOPLE.forEach(p => state[p.id] = {last:p.def, year:now.getFullYear(), month:now.getMonth()});
+
+const pad = n => String(n).padStart(2,'0');
+const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+
+function utcDays(y,m,d){ return Date.UTC(y,m,d)/86400000; }
+function parseDate(s){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');
+  return m ? utcDays(+m[1], +m[2]-1, +m[3]) : null;
+}
+// Цикл: 0 = рабочий, 1 и 2 = выходные; идёт вперёд и назад от выбранной даты
+function isWork(anchor, y, m, d){
+  const diff = Math.round(utcDays(y,m,d) - anchor);
+  return ((diff % 3) + 3) % 3 === 0;
+}
+
+function build(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  PEOPLE.forEach(p => {
+    const sec = document.createElement('section');
+    sec.className = 'person page';
+    sec.dataset.id = p.id;
+    sec.innerHTML = `
+      <h2>${p.name}</h2>
+      <div class="field">
+        <label for="${p.id}-last">Последний рабочий день</label>
+        <input type="date" id="${p.id}-last" inputmode="none" autocomplete="off">
+      </div>
+      <div class="nav">
+        <button type="button" data-a="py" aria-label="Год назад">«</button>
+        <button type="button" data-a="pm" aria-label="Месяц назад">‹</button>
+        <input type="number" class="num" id="${p.id}-m" min="1" max="12" aria-label="Месяц (число)">
+        <input type="number" class="num year" id="${p.id}-y" min="1900" max="2200" aria-label="Год">
+        <button type="button" data-a="nm" aria-label="Месяц вперёд">›</button>
+        <button type="button" data-a="ny" aria-label="Год вперёд">»</button>
+        <button type="button" data-a="t">Сегодня</button>
+        <div class="mname" id="${p.id}-name"></div>
+      </div>
+      <div class="grid" id="${p.id}-grid"></div>
+      <div class="legend"><span><i class="w"></i>Рабочий день</span><span><i></i>Выходной</span></div>
+      <div class="finder">
+        <div class="ftitle">Два выходных подряд: суббота и воскресенье</div>
+        <div class="frow">
+          <button type="button" data-f="prev" data-k="${p.id}" aria-label="Предыдущие">‹</button>
+          <span class="fval" id="${p.id}-f"></span>
+          <button type="button" data-f="next" data-k="${p.id}" aria-label="Следующие">›</button>
+          <button type="button" data-f="show" data-k="${p.id}">Показать</button>
+        </div>
+      </div>`;
+    app.appendChild(sec);
+
+    const s = state[p.id];
+    const li = sec.querySelector(`#${p.id}-last`);
+    li.addEventListener('keydown', e => {
+      if(e.key === 'Tab') return;
+      e.preventDefault();
+      if(e.key === 'Enter' || e.key === ' '){ try{ li.showPicker(); }catch(_){} }
+    });
+    li.addEventListener('paste', e => e.preventDefault());
+    li.addEventListener('click', () => { try{ li.showPicker(); }catch(_){} });
+    sec.querySelector(`#${p.id}-last`).addEventListener('change', e => { s.last = e.target.value; resetFinders(); render(p.id); });
+    const mIn = sec.querySelector(`#${p.id}-m`), yIn = sec.querySelector(`#${p.id}-y`);
+    mIn.addEventListener('change', () => {
+      let v = parseInt(mIn.value,10);
+      if(!isNaN(v)){ s.month = Math.min(12,Math.max(1,v)) - 1; }
+      render(p.id);
+    });
+    yIn.addEventListener('change', () => {
+      let v = parseInt(yIn.value,10);
+      if(!isNaN(v)){ s.year = Math.min(2200,Math.max(1900,v)); }
+      render(p.id);
+    });
+    sec.querySelectorAll('button[data-a]').forEach(b => b.addEventListener('click', () => {
+      const a = b.dataset.a;
+      if(a==='pm') shift(s,-1);
+      if(a==='nm') shift(s,1);
+      if(a==='py') s.year--;
+      if(a==='ny') s.year++;
+      if(a==='t'){ s.year = now.getFullYear(); s.month = now.getMonth(); }
+      render(p.id);
+    }));
+  });
+  wireFinders();
+  PEOPLE.forEach(p => render(p.id));
+  setPage(currentPage);
+}
+
+let currentPage = 'pasha';
+function setPage(name){
+  currentPage = name;
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.p === name));
+  document.querySelectorAll('.person.page').forEach(sec => {
+    const id = sec.dataset.id || 'both';
+    sec.classList.toggle('active', id === name);
+  });
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => setPage(b.dataset.p)));
+
+function shift(s, d){
+  s.month += d;
+  if(s.month < 0){ s.month = 11; s.year--; }
+  if(s.month > 11){ s.month = 0; s.year++; }
+}
+
+function render(id){
+  const s = state[id];
+  document.getElementById(`${id}-last`).value = s.last || '';
+  document.getElementById(`${id}-m`).value = s.month + 1;
+  document.getElementById(`${id}-y`).value = s.year;
+  document.getElementById(`${id}-name`).textContent = `${MONTHS[s.month]} ${s.year}`;
+  renderFinders();
+
+  const anchor = parseDate(s.last);
+  const grid = document.getElementById(`${id}-grid`);
+  grid.innerHTML = DOW.map(d => `<div class="dow">${d}</div>`).join('');
+  const first = (new Date(s.year, s.month, 1).getDay() + 6) % 7; // понедельник = 0
+  const days = new Date(s.year, s.month + 1, 0).getDate();
+  for(let i=0;i<first;i++) grid.insertAdjacentHTML('beforeend','<div class="day empty"></div>');
+  for(let d=1; d<=days; d++){
+    const cls = ['day'];
+    if(anchor !== null && isWork(anchor, s.year, s.month, d)) cls.push('work');
+    if(`${s.year}-${pad(s.month+1)}-${pad(d)}` === todayStr) cls.push('today');
+    if((pick[id]||[]).includes(utcDays(s.year, s.month, d))) cls.push('pick');
+    grid.insertAdjacentHTML('beforeend', `<div class="${cls.join(' ')}">${d}</div>`);
+  }
+}
+
+// ---------- Поиск ближайших выходных ----------
+const DOW_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const todayNum = utcDays(now.getFullYear(), now.getMonth(), now.getDate());
+const finders = {};
+let pick = {};
+
+const cyc = (a, n) => (((n - a) % 3) + 3) % 3;          // 0 = рабочий, 1 и 2 = выходные
+const weekday = n => new Date(n * 86400000).getUTCDay(); // 0 = Вс, 6 = Сб
+const fmt = n => {
+  const x = new Date(n * 86400000);
+  return `${DOW_SHORT[x.getUTCDay()]}, ${x.getUTCDate()} ${MONTHS_G[x.getUTCMonth()]} ${x.getUTCFullYear()}`;
+};
+function find(from, dir, pred){
+  for(let i = 0, n = from; i < 3700; i++, n += dir){ if(pred(n)) return n; }
+  return null;
+}
+function predFor(key){
+  if(key === 'both'){
+    const a = parseDate(state.pasha.last), b = parseDate(state.andrey.last);
+    if(a === null || b === null) return null;
+    return n => { const w = weekday(n); return (w === 6 || w === 0) && cyc(a,n) !== 0 && cyc(b,n) !== 0; };
+  }
+  const a = parseDate(state[key].last);
+  if(a === null) return null;
+  return n => weekday(n) === 6 && cyc(a,n) === 1;      // суббота — первый выходной, воскресенье — второй
+}
+function ensure(key){
+  const pred = predFor(key);
+  if(!pred) return null;
+  const f = finders[key] || (finders[key] = {});
+  if(f.cur === undefined) f.cur = find(todayNum, 1, pred);
+  return {f, pred};
+}
+function renderFinders(){
+  ['pasha','andrey','both'].forEach(key => {
+    const out = document.getElementById(`${key}-f`);
+    if(!out) return;
+    const r = ensure(key);
+    if(!r){ out.textContent = key === 'both' ? 'Укажите последний рабочий день у обоих' : 'Укажите последний рабочий день'; return; }
+    const n = r.f.cur;
+    out.textContent = n === null ? 'В ближайшие 10 лет не найдено'
+      : key === 'both' ? `${fmt(n)}: выходной у обоих`
+      : `${fmt(n)} и ${fmt(n+1)}`;
+  });
+}
+function showFound(key){
+  const r = ensure(key);
+  if(!r || r.f.cur === null) return;
+  const n = r.f.cur, x = new Date(n * 86400000);
+  const ids = key === 'both' ? ['pasha','andrey'] : [key];
+  pick = {};
+  ids.forEach(id => {
+    pick[id] = key === 'both' ? [n] : [n, n+1];
+    state[id].year = x.getUTCFullYear();
+    state[id].month = x.getUTCMonth();
+  });
+  PEOPLE.forEach(p => render(p.id));
+}
+function stepFinder(key, dir){
+  const r = ensure(key);
+  if(!r || r.f.cur === null) return;
+  const n = find(r.f.cur + dir, dir, r.pred);
+  if(n !== null) r.f.cur = n;
+  showFound(key);
+}
+function resetFinders(){
+  Object.keys(finders).forEach(k => delete finders[k]);
+  pick = {};
+}
+function wireFinders(){
+  document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+    const key = b.dataset.k, act = b.dataset.f;
+    if(act === 'show'){
+      showFound(key);
+      // на телефоне переходим на вкладку выбранного человека
+      if(key === 'both' && window.matchMedia('(max-width:860px)').matches){
+        setPage(document.getElementById('both-who').value);
+      }
+    }
+    else stepFinder(key, act === 'next' ? 1 : -1);
+  }));
+}
+
+build();
+</script>
+</body>
+</html>
