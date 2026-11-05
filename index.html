@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Расписание: Паша и Андрей</title>
 <style>
 :root{
@@ -16,6 +16,8 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--ink);font:16px/1.4 "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   padding:24px 16px 40px;}
 header{max-width:1000px;margin:0 auto 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
@@ -59,8 +61,13 @@ input[type=date],input[type=number]{font:inherit;padding:6px 8px;border:1px soli
 .frow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .frow button{padding:6px 10px;min-width:38px}
 .fval{flex:1 1 180px;font-weight:600}
+.chips button.next{background:#f76707;border-color:#f76707;color:#fff}
 .overlap{--c:var(--muted);max-width:1000px;margin:20px auto 0}
 .overlap .finder{margin-top:0;padding-top:0;border-top:0}
+.flabel{font-size:.85rem;color:var(--muted);margin-bottom:6px}
+.chips{display:flex;gap:6px;margin-bottom:12px}
+.chips button{flex:1 1 0;max-width:60px;min-width:0;padding:8px 0;font-weight:600}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 input[type=date]{cursor:pointer}
 select{font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
 .mobile-only{display:none}
@@ -89,7 +96,8 @@ select{font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:8
 <section class="person overlap page" id="page-both">
   <h2>Общие выходные</h2>
   <div class="finder">
-    <div class="ftitle">Суббота или воскресенье, когда выходной и у Паши, и у Андрея</div>
+    <div class="ftitle" id="both-t"></div>
+    <div class="chips" data-k="both" role="group" aria-label="Дни недели для поиска"></div>
     <div class="frow">
       <button type="button" data-f="prev" data-k="both" aria-label="Предыдущая дата">‹</button>
       <span class="fval" id="both-f"></span>
@@ -155,7 +163,9 @@ function build(){
       <div class="grid" id="${p.id}-grid"></div>
       <div class="legend"><span><i class="w"></i>Рабочий день</span><span><i></i>Выходной</span></div>
       <div class="finder">
-        <div class="ftitle">Два выходных подряд: суббота и воскресенье</div>
+        <div class="ftitle" id="${p.id}-t"></div>
+        <div class="flabel">Первый из двух выходных — день недели (оранжевым отмечен второй):</div>
+        <div class="chips" data-k="${p.id}" role="group" aria-label="Первый день недели"></div>
         <div class="frow">
           <button type="button" data-f="prev" data-k="${p.id}" aria-label="Предыдущие">‹</button>
           <span class="fval" id="${p.id}-f"></span>
@@ -247,6 +257,9 @@ const MONTHS_G = ['января','февраля','марта','апреля','�
 const todayNum = utcDays(now.getFullYear(), now.getMonth(), now.getDate());
 const finders = {};
 let pick = {};
+const DOW_FULL = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const ORDER = [1,2,3,4,5,6,0];                        // порядок кнопок: Пн … Вс
+const opts = { both: new Set([6,0]), first: { pasha: 6, andrey: 6 } };  // по умолчанию: Сб и Вс; первый день — суббота
 
 const cyc = (a, n) => (((n - a) % 3) + 3) % 3;          // 0 = рабочий, 1 и 2 = выходные
 const weekday = n => new Date(n * 86400000).getUTCDay(); // 0 = Вс, 6 = Сб
@@ -262,11 +275,13 @@ function predFor(key){
   if(key === 'both'){
     const a = parseDate(state.pasha.last), b = parseDate(state.andrey.last);
     if(a === null || b === null) return null;
-    return n => { const w = weekday(n); return (w === 6 || w === 0) && cyc(a,n) !== 0 && cyc(b,n) !== 0; };
+    const days = opts.both;
+    return n => days.has(weekday(n)) && cyc(a,n) !== 0 && cyc(b,n) !== 0;
   }
   const a = parseDate(state[key].last);
   if(a === null) return null;
-  return n => weekday(n) === 6 && cyc(a,n) === 1;      // суббота — первый выходной, воскресенье — второй
+  const first = opts.first[key];
+  return n => weekday(n) === first && cyc(a,n) === 1;   // выбранный день — первый выходной, следующий за ним — второй
 }
 function ensure(key){
   const pred = predFor(key);
@@ -279,6 +294,19 @@ function renderFinders(){
   ['pasha','andrey','both'].forEach(key => {
     const out = document.getElementById(`${key}-f`);
     if(!out) return;
+    const t = document.getElementById(`${key}-t`);
+    if(key === 'both'){
+      t.textContent = 'Ближайшие дни, когда выходной и у Паши, и у Андрея. Дни недели для поиска: ' +
+        ORDER.filter(d => opts.both.has(d)).map(d => DOW_FULL[d]).join(', ');
+    } else {
+      const f1 = opts.first[key];
+      t.textContent = `Два выходных подряд: ${DOW_FULL[f1]} и ${DOW_FULL[(f1+1)%7]}`;
+    }
+    document.querySelectorAll(`.chips[data-k="${key}"] button`).forEach(b => {
+      const d = +b.dataset.d;
+      b.setAttribute('aria-pressed', key === 'both' ? opts.both.has(d) : opts.first[key] === d);
+      b.classList.toggle('next', key !== 'both' && (opts.first[key] + 1) % 7 === d);   // второй день пары
+    });
     const r = ensure(key);
     if(!r){ out.textContent = key === 'both' ? 'Укажите последний рабочий день у обоих' : 'Укажите последний рабочий день'; return; }
     const n = r.f.cur;
@@ -311,7 +339,26 @@ function resetFinders(){
   Object.keys(finders).forEach(k => delete finders[k]);
   pick = {};
 }
+function chipsInit(){
+  document.querySelectorAll('.chips').forEach(box => {
+    const key = box.dataset.k;
+    box.innerHTML = ORDER.map(d => `<button type="button" data-d="${d}" aria-pressed="false">${DOW_SHORT[d]}</button>`).join('');
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button[data-d]');
+      if(!b) return;
+      const d = +b.dataset.d;
+      if(key === 'both'){
+        if(opts.both.has(d)){ if(opts.both.size === 1) return; opts.both.delete(d); }   // минимум один день
+        else opts.both.add(d);
+      } else opts.first[key] = d;
+      delete finders[key];            // пересчёт от сегодняшней даты
+      pick = {};
+      PEOPLE.forEach(p => render(p.id));
+    });
+  });
+}
 function wireFinders(){
+  chipsInit();
   document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
     const key = b.dataset.k, act = b.dataset.f;
     if(act === 'show'){
